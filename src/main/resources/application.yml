@@ -21,9 +21,9 @@ spring:
   # todo 需替换配置
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
-    url: jdbc:mysql://localhost:3306/yubi
+    url: jdbc:mysql://localhost:3306/biproject
     username: root
-    password: helloworld
+    password: 0zYya!9%Y73R
   # Redis 配置
   # todo 需替换配置，然后取消注释
 #  redis:
@@ -45,7 +45,7 @@ spring:
       max-file-size: 10MB
 server:
   address: 0.0.0.0
-  port: 8101
+  port: 8111
   servlet:
     context-path: /api
     # cookie 30 天过期
@@ -105,3 +105,9 @@ yuapi:
   client:
     access-key: 64zpobzn74hu8az7efa06enwhkfbt5uo
     secret-key: ox0sapw4627djpiji93apetm7bs2q1er
+
+openai:
+  api:
+    model: gpt-3.5-turbo
+    url: https://api.openai.com/v1/chat/completions
+    key: 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
