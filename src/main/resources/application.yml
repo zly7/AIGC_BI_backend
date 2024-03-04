@@ -108,6 +108,12 @@ yuapi:
 
 openai:
   api:
+<<<<<<< HEAD
     model: gpt-4
     url: https://api.openai-proxy.com/v1/chat/completions
     key: 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
+=======
+    model: gpt-3.5-turbo
+    url: https://api.openai.com/v1/chat/completions
+    key: 
+>>>>>>> refs/remotes/origin/master
