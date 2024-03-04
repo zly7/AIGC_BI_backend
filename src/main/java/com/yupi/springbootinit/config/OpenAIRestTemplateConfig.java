@@ -23,7 +23,7 @@ public class OpenAIRestTemplateConfig  {
     private String openaiApiKey;
 
     @Bean
-    @Qualifier("openaiRestClient")
+    @Qualifier("openaiRestTemplate")
     public RestTemplate openaiRestTemplate() {
         final RestTemplate restTemplate = new RestTemplate();
 

@@ -15,7 +15,7 @@ import java.util.stream.Collectors;
 public class ExcelUtils {
     public static String excelToCsv(MultipartFile multipartFile) {
         // 创建临时文件来保存Excel内容
-        File tempFile = null;
+        File tempFile;
         try {
             tempFile = File.createTempFile("excel-", ".tmp");
             multipartFile.transferTo(tempFile);
