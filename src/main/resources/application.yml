@@ -21,16 +21,17 @@ spring:
   # todo 需替换配置
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
-    url: jdbc:mysql://localhost:3306/biproject
+    url: jdbc:mysql://localhost:3306/yubi
+#    url: jdbc:mysql://localhost:3306/biproject
     username: root
-    password: 0zYya!9%Y73R
+#    password: 0zYya!9%Y73R
+    password: helloworld
   # Redis 配置
-  # todo 需替换配置，然后取消注释
-#  redis:
-#    database: 1
-#    host: localhost
-#    port: 6379
-#    timeout: 5000
+  redis:
+    database: 1
+    host: localhost
+    port: 6379
+    timeout: 5000
 #    password: 123456
   # Elasticsearch 配置
   # todo 需替换配置，然后取消注释
@@ -45,7 +46,8 @@ spring:
       max-file-size: 10MB
 server:
   address: 0.0.0.0
-  port: 8111
+#  port: 8111
+  port: 8101
   servlet:
     context-path: /api
     # cookie 30 天过期
