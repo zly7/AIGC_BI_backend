@@ -1,46 +1,35 @@
-package com.yupi.springbootinit.controller;
+package com.yupi.springbootinit.manager;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.yupi.springbootinit.model.dto.chat.ChatRequest;
-import com.yupi.springbootinit.model.dto.chat.ChatResponse;
 import com.yupi.springbootinit.utils.GetAIResponseUtils;
+import com.yupi.yucongming.dev.common.BaseResponse;
+import com.yupi.yucongming.dev.model.DevChatRequest;
+import com.yupi.yucongming.dev.model.DevChatResponse;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.stereotype.Service;
 import org.springframework.web.client.HttpStatusCodeException;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-
-@RestController
-public class ChatController {
+@Service
+public class OpenAIManager {
 
     @Qualifier("openaiRestTemplate")
     @Autowired
     private RestTemplate restTemplate;
 
-    @Value("${openai.api.model}")
-    private String model;
-
     @Value("${openai.api.url}")
     private String apiUrl;
 
-    @GetMapping("/chat")
-    public String chat(@RequestParam String prompt) {
-        // create a request
-
-        ChatRequest request = new ChatRequest(model, prompt);
+    public String doChat(String modelId, String messagePrompt){
+        ChatRequest request = new ChatRequest(modelId, messagePrompt);
 
         // Convert ChatRequest to JSON
         ObjectMapper objectMapper = new ObjectMapper();
@@ -58,7 +47,7 @@ public class ChatController {
         HttpEntity<String> entity = new HttpEntity<>(jsonRequest, headers);
         String response;
         try {
-            response = restTemplate.postForObject(apiUrl, entity, String.class);
+            response = this.restTemplate.postForObject(apiUrl, entity, String.class);
             response = GetAIResponseUtils.getResponse(response);
         } catch (RestClientException e) {
             // Handle RestClientException
@@ -78,4 +67,3 @@ public class ChatController {
         return response;
     }
 }
-

@@ -5,6 +5,7 @@ import lombok.Data;
 import org.springframework.web.multipart.MultipartFile;
 @Data
 public class GenChartByAiRequest {
+
     /**
      * 图表类型
      */

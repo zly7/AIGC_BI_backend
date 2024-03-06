@@ -1,6 +1,4 @@
 package com.yupi.springbootinit.controller;
-import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Date;
 
 import cn.hutool.core.collection.CollUtil;
@@ -20,6 +18,7 @@ import com.yupi.springbootinit.exception.BusinessException;
 import com.yupi.springbootinit.exception.ThrowUtils;
 import com.yupi.springbootinit.manager.AiManager;
 import com.yupi.springbootinit.manager.RedisLimiterManager;
+import com.yupi.springbootinit.manager.OpenAIManager;
 import com.yupi.springbootinit.model.dto.chart.*;
 import com.yupi.springbootinit.model.dto.file.UploadFileRequest;
 import com.yupi.springbootinit.model.entity.Chart;
@@ -36,7 +35,6 @@ import javax.servlet.http.HttpServletRequest;
 
 import com.yupi.springbootinit.utils.ExcelUtils;
 import com.yupi.springbootinit.utils.SqlUtils;
-import io.lettuce.core.RedisReadOnlyException;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.ObjectUtils;
 import org.apache.commons.lang3.RandomStringUtils;
@@ -68,6 +66,9 @@ public class ChartController {
 
     @Resource
     private RedisLimiterManager redisLimiterManager;
+
+    @Resource
+    private OpenAIManager openAIManager;
 
     // region 增删改查
 
@@ -275,7 +276,7 @@ public class ChartController {
         //限流操作,每个用户对应的每个方法的限流器
         redisLimiterManager.doLimit("genChartByAi_"+String.valueOf(loginInUser.getId()));
         allPrompt.append("你是一个数据分析师，现在我会把原始的数据给你，你需要帮我按照要求总结总结。请格式按照要求的【【【【【进行分割，" +
-                "也就是要生成两部分，第一部分是生成图表的前端 Echarts V5 的 option 配置对象json代码，第二部分是分析的数据的语言结果，" +
+                "也就是要生成两部分，第一部分是生成图表的前端 Echarts V5 的 option 配置对象is代码，第二部分是分析的数据的语言结果，" +
                 "合理地将数据进行可视化，不要生成任何多余的内容。两部分开头都用【【【【【进行开头\n。最后要返回的格式是生成内容(此外不要输出任何多余的开头、结尾、注释):\n" +
                 "【【【【【\n"+
                 "{前端 Echarts V5 的 option 配置对象js代码，合理地将数据进行可视化，不要生成任何多余的内容，比如注释}\n" +
@@ -288,8 +289,8 @@ public class ChartController {
         allPrompt.append(chartType);
         allPrompt.append("原始数据是，这部分是Csv格式，逗号分隔的:\n");
         allPrompt.append(csvString);
-        long modelId = 1654785040361893889L;
-        String answerByAi = aiManager.doChat(modelId,allPrompt.toString());
+        String modelId = "gpt-4";
+        String answerByAi = openAIManager.doChat(modelId,allPrompt.toString());
         String[] splitAnswers = answerByAi.split("【【【【【");
         if(splitAnswers.length!=3){
             throw new BusinessException(ErrorCode.SYSTEM_ERROR,"AI 生成错误");
@@ -323,10 +324,16 @@ public class ChartController {
             return queryWrapper;
         }
         Long id = chartQueryRequest.getId();
+
+        String name = chartQueryRequest.getName();
+
         String chartType = chartQueryRequest.getChartType();
         String goal = chartQueryRequest.getGoal();
         Long userId = chartQueryRequest.getUserId();
         queryWrapper.eq(id != null && id > 0,"id",id);
+
+        queryWrapper.like(StringUtils.isNotBlank(name),"name", name);
+
         queryWrapper.eq(StringUtils.isNotBlank(chartType),"chartType",chartType);
         queryWrapper.eq(ObjectUtils.isNotEmpty(userId),"userId",userId);
         queryWrapper.eq(StringUtils.isNotBlank(goal),"goal",goal);
