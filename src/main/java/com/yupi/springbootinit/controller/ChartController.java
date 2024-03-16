@@ -1,4 +1,5 @@
 package com.yupi.springbootinit.controller;
+import java.util.Arrays;
 import java.util.Date;
 
 import cn.hutool.core.collection.CollUtil;
@@ -30,6 +31,8 @@ import com.yupi.springbootinit.service.ChartService;
 import com.yupi.springbootinit.service.UserService;
 import java.io.File;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ThreadPoolExecutor;
 import javax.annotation.Resource;
 import javax.servlet.http.HttpServletRequest;
 
@@ -39,6 +42,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.ObjectUtils;
 import org.apache.commons.lang3.RandomStringUtils;
 import org.apache.commons.lang3.StringUtils;
+import org.checkerframework.checker.units.qual.C;
 import org.springframework.beans.BeanUtils;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
@@ -69,6 +73,9 @@ public class ChartController {
 
     @Resource
     private OpenAIManager openAIManager;
+
+    @Resource
+    private ThreadPoolExecutor threadPoolExecutor;
 
     // region 增删改查
 
@@ -247,6 +254,7 @@ public class ChartController {
         boolean result = chartService.updateById(chart);
         return ResultUtils.success(result);
     }
+
     /**
      * 文件上传
      *
@@ -257,10 +265,11 @@ public class ChartController {
      */
     @PostMapping("/gen")
     public BaseResponse<BiResponse> genChartByAi(@RequestPart("file") MultipartFile multipartFile,
-                                             GenChartByAiRequest genChartByAiRequest, HttpServletRequest request) {
+                                                 GenChartByAiRequest genChartByAiRequest, HttpServletRequest request) {
         String chartType = genChartByAiRequest.getChartType();
         String goal = genChartByAiRequest.getGoal();
         String name = genChartByAiRequest.getName();
+        String modelName = genChartByAiRequest.getModelName();
         StringBuilder allPrompt = new StringBuilder();
         //必须要登陆才能使用
         User loginInUser = userService.getLoginUser(request);
@@ -279,7 +288,7 @@ public class ChartController {
                 "也就是要生成两部分，第一部分是生成图表的前端 Echarts V5 的 option 配置对象is代码，第二部分是分析的数据的语言结果，" +
                 "合理地将数据进行可视化，不要生成任何多余的内容。两部分开头都用【【【【【进行开头\n。最后要返回的格式是生成内容(此外不要输出任何多余的开头、结尾、注释):\n" +
                 "【【【【【\n"+
-                "{前端 Echarts V5 的 option 配置对象js代码，合理地将数据进行可视化，不要生成任何多余的内容，比如注释}\n" +
+                "{前端 Echarts V5 的 option 配置对象js代码，合理地将数据进行可视化，不要生成任何多余的内容，比如注释,不用markdown格式的```包裹}\n" +
                 "【【【【【\n" +
                 "{明确的数据分析结论、越详细越好，不要生成多余的注释}");
         allPrompt.append("用户要分析的要求是:\n");
@@ -289,8 +298,16 @@ public class ChartController {
         allPrompt.append(chartType);
         allPrompt.append("原始数据是，这部分是Csv格式，逗号分隔的:\n");
         allPrompt.append(csvString);
-        String modelId = "gpt-4";
-        String answerByAi = openAIManager.doChat(modelId,allPrompt.toString());
+        //调用AI
+        String answerByAi;
+        if(modelName.contains("gpt")){//这个地方应该是Http包请求有这个
+            answerByAi = openAIManager.doChat(modelName,allPrompt.toString());
+        } else if (modelName.contains("yucongming")) {
+            answerByAi = aiManager.doChat(1654785040361893889L, allPrompt.toString());
+        }else {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR,"模型名称设置有误");
+        }
+        answerByAi = answerByAi.replaceAll("】{5}", "");
         String[] splitAnswers = answerByAi.split("【【【【【");
         if(splitAnswers.length!=3){
             throw new BusinessException(ErrorCode.SYSTEM_ERROR,"AI 生成错误");
@@ -308,9 +325,106 @@ public class ChartController {
         chart.setGenChart(genChart);
         chart.setGenResult(genResult);
         chart.setUserId(loginInUser.getId());
+        chart.setStatus("succeed");
         boolean saveChartResult = chartService.save(chart);
         ThrowUtils.throwIf(!saveChartResult,ErrorCode.SYSTEM_ERROR,"chart保存错误");
         return ResultUtils.success(biResponse);
+    }
+
+    /**
+     * 文件上传
+     *
+     * @param multipartFile
+     * @param genChartByAiRequest
+     * @param request
+     * @return
+     */
+    @PostMapping("/gen/async")
+    public BaseResponse<BiResponse> genChartByAiAsync(@RequestPart("file") MultipartFile multipartFile,
+                                             GenChartByAiRequest genChartByAiRequest, HttpServletRequest request) {
+        String chartType = genChartByAiRequest.getChartType();
+        String goal = genChartByAiRequest.getGoal();
+        String name = genChartByAiRequest.getName();
+        String modelName = genChartByAiRequest.getModelName();
+        StringBuilder allPrompt = new StringBuilder();
+        //必须要登陆才能使用
+        User loginInUser = userService.getLoginUser(request);
+
+        long size = multipartFile.getSize();
+        String filename = multipartFile.getOriginalFilename();
+        final long ONE_MB = 1 * 1024 * 1024L;
+        ThrowUtils.throwIf(size>ONE_MB, ErrorCode.PARAMS_ERROR, "上传文件过大");
+        String suffix = FileUtil.getSuffix(filename);
+        List<String> validateFileSuffix= Arrays.asList("csv","xlsx");
+        ThrowUtils.throwIf(!validateFileSuffix.contains(suffix),ErrorCode.PARAMS_ERROR,"上传文件后缀不合法");
+
+        //限流操作,每个用户对应的每个方法的限流器
+        redisLimiterManager.doLimit("genChartByAi_"+String.valueOf(loginInUser.getId()));
+        allPrompt.append("你是一个数据分析师，现在我会把原始的数据给你，你需要帮我按照要求总结总结。请格式按照要求的【【【【【进行分割，" +
+                "也就是要生成两部分，第一部分是生成图表的前端 Echarts V5 的 option 配置对象is代码，第二部分是分析的数据的语言结果，" +
+                "合理地将数据进行可视化，不要生成任何多余的内容。两部分开头都用【【【【【进行开头\n。最后要返回的格式是生成内容(此外不要输出任何多余的开头、结尾、注释):\n" +
+                "【【【【【\n"+
+                "{前端 Echarts V5 的 option 配置对象js代码，合理地将数据进行可视化，不要生成任何多余的内容，比如注释,不用markdown格式的```包裹}\n" +
+                "【【【【【\n" +
+                "{明确的数据分析结论、越详细越好，不要生成多余的注释}");
+        allPrompt.append("用户要分析的要求是:\n");
+        allPrompt.append(goal).append("\n");
+        String csvString = ExcelUtils.excelToCsv(multipartFile);
+        allPrompt.append("最后的要生成的图表类型是:\n");
+        allPrompt.append(chartType);
+        allPrompt.append("原始数据是，这部分是Csv格式，逗号分隔的:\n");
+        allPrompt.append(csvString);
+
+        Chart chart = new Chart();
+        chart.setGoal(goal);
+        chart.setName(name);
+        chart.setChartData(csvString);
+        chart.setChartType(chartType);
+        chart.setUserId(loginInUser.getId());
+        chart.setStatus("wait");
+        boolean saveChartResult = chartService.save(chart);
+        if (!saveChartResult){
+            handleUpdatedError(chart.getId(),"chart保存错误");
+        }
+        CompletableFuture.runAsync(() -> {
+            Chart updatedChart = chartService.getById(chart.getId());
+            updatedChart.setStatus("running");
+            String answerByAi;
+            if(modelName.contains("gpt")){//这个地方应该是Http包请求有这个
+                answerByAi = openAIManager.doChat(modelName,allPrompt.toString());
+            } else if (modelName.contains("yucongming")) {
+                answerByAi = aiManager.doChat(1654785040361893889L, allPrompt.toString());
+            }else {
+                throw new BusinessException(ErrorCode.PARAMS_ERROR,"模型名称设置有误");
+            }
+            answerByAi = answerByAi.replaceAll("】{5}", "");
+            String[] splitAnswers = answerByAi.split("【【【【【");
+            if(splitAnswers.length!=3){
+                throw new BusinessException(ErrorCode.SYSTEM_ERROR,"AI 生成错误");
+            }
+
+            String genChart = splitAnswers[1].trim();
+            String genResult = splitAnswers[2].trim();
+            updatedChart.setGenResult(genResult);
+            updatedChart.setGenChart(genChart);
+            updatedChart.setStatus("succeed");
+            boolean updatedResult = chartService.updateById(updatedChart);
+            if(!updatedResult){
+                handleUpdatedError(updatedChart.getId(),"获得AI数据后，更新图表错误");
+            }
+        },threadPoolExecutor);
+
+        BiResponse biResponse = new BiResponse();
+        biResponse.setChartId(chart.getId());
+        return ResultUtils.success(biResponse);
+    }
+    private void handleUpdatedError(Long chartId,String execMessage){
+        Chart newChart = new Chart();
+        newChart.setId(chartId);
+        newChart.setStatus("failed");
+        newChart.setExecMessage(execMessage);
+        boolean updatedResult = chartService.updateById(newChart);
+        return;
     }
     /**
      * 获取查询包装类

@@ -16,6 +16,8 @@ public class GenChartByAiRequest {
     private String goal;
 
     private String name;
+
+    private String modelName;
     @TableField(exist = false)
     private static final long serialVersionUID = 1L;
 }
