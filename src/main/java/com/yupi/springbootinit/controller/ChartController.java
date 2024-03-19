@@ -390,8 +390,9 @@ public class ChartController {
             Chart updatedChart = chartService.getById(chart.getId());
             updatedChart.setStatus("running");
             String answerByAi;
-            if(modelName.contains("gpt")){//这个地方应该是Http包请求有这个
-                answerByAi = openAIManager.doChat(modelName,allPrompt.toString());
+            if(modelName.contains("gpt")){
+//                answerByAi = openAIManager.doChat(modelName,allPrompt.toString());
+                  answerByAi = openAIManager.doLcChat(modelName,allPrompt.toString());
             } else if (modelName.contains("yucongming")) {
                 answerByAi = aiManager.doChat(1654785040361893889L, allPrompt.toString());
             }else {

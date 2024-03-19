@@ -19,11 +19,8 @@ spring:
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
     url: jdbc:mysql://localhost:3306/yubi
-#    url: jdbc:mysql://localhost:3306/biproject
     username: root
-#    password: 0zYya!9%Y73R
     password: helloworld
-  # Redis 配置
   redis:
     database: 1
     host: localhost
@@ -43,7 +40,6 @@ spring:
       max-file-size: 10MB
 server:
   address: 0.0.0.0
-#  port: 8111
   port: 8101
   servlet:
     context-path: /api
