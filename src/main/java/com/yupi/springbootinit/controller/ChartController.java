@@ -1,10 +1,7 @@
 package com.yupi.springbootinit.controller;
 import java.util.Arrays;
-import java.util.Date;
 
-import cn.hutool.core.collection.CollUtil;
 import cn.hutool.core.io.FileUtil;
-import cn.hutool.json.JSONUtil;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.yupi.springbootinit.annotation.AuthCheck;
@@ -13,23 +10,20 @@ import com.yupi.springbootinit.common.DeleteRequest;
 import com.yupi.springbootinit.common.ErrorCode;
 import com.yupi.springbootinit.common.ResultUtils;
 import com.yupi.springbootinit.constant.CommonConstant;
-import com.yupi.springbootinit.constant.FileConstant;
 import com.yupi.springbootinit.constant.UserConstant;
 import com.yupi.springbootinit.exception.BusinessException;
 import com.yupi.springbootinit.exception.ThrowUtils;
 import com.yupi.springbootinit.manager.AiManager;
+import com.yupi.springbootinit.manager.LangChainManager;
 import com.yupi.springbootinit.manager.RedisLimiterManager;
 import com.yupi.springbootinit.manager.OpenAIManager;
 import com.yupi.springbootinit.model.dto.chart.*;
-import com.yupi.springbootinit.model.dto.file.UploadFileRequest;
 import com.yupi.springbootinit.model.entity.Chart;
-import com.yupi.springbootinit.model.entity.Post;
 import com.yupi.springbootinit.model.entity.User;
-import com.yupi.springbootinit.model.enums.FileUploadBizEnum;
 import com.yupi.springbootinit.model.vo.BiResponse;
 import com.yupi.springbootinit.service.ChartService;
 import com.yupi.springbootinit.service.UserService;
-import java.io.File;
+
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ThreadPoolExecutor;
@@ -40,9 +34,7 @@ import com.yupi.springbootinit.utils.ExcelUtils;
 import com.yupi.springbootinit.utils.SqlUtils;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.ObjectUtils;
-import org.apache.commons.lang3.RandomStringUtils;
 import org.apache.commons.lang3.StringUtils;
-import org.checkerframework.checker.units.qual.C;
 import org.springframework.beans.BeanUtils;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
@@ -73,6 +65,9 @@ public class ChartController {
 
     @Resource
     private OpenAIManager openAIManager;
+
+    @Resource
+    private LangChainManager langChainManager;
 
     @Resource
     private ThreadPoolExecutor threadPoolExecutor;
@@ -391,8 +386,7 @@ public class ChartController {
             updatedChart.setStatus("running");
             String answerByAi;
             if(modelName.contains("gpt")){
-//                answerByAi = openAIManager.doChat(modelName,allPrompt.toString());
-                  answerByAi = openAIManager.doLcChat(modelName,allPrompt.toString());
+                answerByAi = openAIManager.doChat(modelName,allPrompt.toString());
             } else if (modelName.contains("yucongming")) {
                 answerByAi = aiManager.doChat(1654785040361893889L, allPrompt.toString());
             }else {
@@ -400,6 +394,77 @@ public class ChartController {
             }
             answerByAi = answerByAi.replaceAll("】{5}", "");
             String[] splitAnswers = answerByAi.split("【【【【【");
+            if(splitAnswers.length!=3){
+                throw new BusinessException(ErrorCode.SYSTEM_ERROR,"AI 生成错误");
+            }
+
+            String genChart = splitAnswers[1].trim();
+            String genResult = splitAnswers[2].trim();
+            updatedChart.setGenResult(genResult);
+            updatedChart.setGenChart(genChart);
+            updatedChart.setStatus("succeed");
+            boolean updatedResult = chartService.updateById(updatedChart);
+            if(!updatedResult){
+                handleUpdatedError(updatedChart.getId(),"获得AI数据后，更新图表错误");
+            }
+        },threadPoolExecutor);
+
+        BiResponse biResponse = new BiResponse();
+        biResponse.setChartId(chart.getId());
+        return ResultUtils.success(biResponse);
+    }
+    @PostMapping("/genLc/async")
+    public BaseResponse<BiResponse> genChartByLcAiAsync(@RequestPart("file") MultipartFile multipartFile,
+                                                      GenChartByAiRequest genChartByAiRequest, HttpServletRequest request) {
+        String chartType = genChartByAiRequest.getChartType();
+        String goal = genChartByAiRequest.getGoal();
+        String name = genChartByAiRequest.getName();
+        String modelName = genChartByAiRequest.getModelName();
+        StringBuilder allPrompt = new StringBuilder();
+        //必须要登陆才能使用
+        User loginInUser = userService.getLoginUser(request);
+
+        long size = multipartFile.getSize();
+        String filename = multipartFile.getOriginalFilename();
+        final long ONE_MB = 1 * 1024 * 1024L;
+        ThrowUtils.throwIf(size>ONE_MB, ErrorCode.PARAMS_ERROR, "上传文件过大");
+        String suffix = FileUtil.getSuffix(filename);
+        List<String> validateFileSuffix= Arrays.asList("csv","xlsx");
+        ThrowUtils.throwIf(!validateFileSuffix.contains(suffix),ErrorCode.PARAMS_ERROR,"上传文件后缀不合法");
+
+        //限流操作,每个用户对应的每个方法的限流器
+        redisLimiterManager.doLimit("genChartByAi_"+String.valueOf(loginInUser.getId()));
+
+        GiveLangChainManagerDataPackage giveLangChainManagerDataPackage = new GiveLangChainManagerDataPackage();
+        giveLangChainManagerDataPackage.setChartType(chartType);
+        giveLangChainManagerDataPackage.setGoal(goal);
+        String csvString = ExcelUtils.excelToCsv(multipartFile);
+        giveLangChainManagerDataPackage.setCsvString(csvString);
+        giveLangChainManagerDataPackage.setModelName(modelName);
+
+        Chart chart = new Chart();
+        chart.setGoal(goal);
+        chart.setName(name);
+        chart.setChartData(csvString);
+        chart.setChartType(chartType);
+        chart.setUserId(loginInUser.getId());
+        chart.setStatus("wait");
+        boolean saveChartResult = chartService.save(chart);
+        if (!saveChartResult){
+            handleUpdatedError(chart.getId(),"chart保存错误");
+        }
+        CompletableFuture.runAsync(() -> {
+            Chart updatedChart = chartService.getById(chart.getId());
+            updatedChart.setStatus("running");
+            String answerByAi;
+            if(modelName.contains("gpt")){
+                answerByAi = langChainManager.doLcChat(giveLangChainManagerDataPackage);
+            } else if (modelName.contains("yucongming")) {
+                answerByAi = aiManager.doChat(1654785040361893889L, allPrompt.toString());
+            }else {
+                throw new BusinessException(ErrorCode.PARAMS_ERROR,"模型名称设置有误");
+            }
+            String[] splitAnswers = answerByAi.split("#####");
             if(splitAnswers.length!=3){
                 throw new BusinessException(ErrorCode.SYSTEM_ERROR,"AI 生成错误");
             }
