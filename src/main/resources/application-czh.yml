@@ -18,7 +18,7 @@ spring:
   # todo 需替换配置
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
-    url: jdbc:mysql://localhost:3306/biproject
+    url: jdbc:mysql://localhost:3306/biproject?sessionVariables=sql_mode='NO_ENGINE_SUBSTITUTION'&jdbcCompliantTruncation=false
     username: root
     password: 0zYya!9%Y73R
   # Redis 配置
@@ -107,5 +107,5 @@ openai:
   api:
     model: gpt-4
     url: https://api.openai-proxy.com/v1/chat/completions
-    key: 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
+    key:
 
