@@ -112,5 +112,5 @@ openai:
   api:
     model: gpt-4
     url: https://api.openai-proxy.com/v1/chat/completions
-    key: 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
+    key: ${OPENAI_API_KEY}
 
