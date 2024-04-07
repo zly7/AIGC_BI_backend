@@ -420,7 +420,7 @@ public class ChartController {
         String goal = genChartByAiRequest.getGoal();
         String name = genChartByAiRequest.getName();
         String modelName = genChartByAiRequest.getModelName();
-        StringBuilder allPrompt = new StringBuilder();
+
         //必须要登陆才能使用
         User loginInUser = userService.getLoginUser(request);
 
@@ -460,6 +460,20 @@ public class ChartController {
             if(modelName.contains("gpt")){
                 answerByAi = langChainManager.doLcChat(giveLangChainManagerDataPackage);
             } else if (modelName.contains("yucongming")) {
+                StringBuilder allPrompt = new StringBuilder();
+                allPrompt.append("你是一个数据分析师，现在我会把原始的数据给你，你需要帮我按照要求总结总结。请格式按照要求的#####进行分割，" +
+                        "也就是要生成两部分，第一部分是生成图表的前端 Echarts V5 的 option 配置对象is代码，第二部分是分析的数据的语言结果，" +
+                        "合理地将数据进行可视化，不要生成任何多余的内容。两部分开头都用#####进行开头\n。最后要返回的格式是生成内容(此外不要输出任何多余的开头、结尾、注释):\n" +
+                        "#####\n"+
+                        "{前端 Echarts V5 的 option 配置对象js代码，合理地将数据进行可视化，Echart JSON 格式里记得为每个字符串附上引号，不要生成任何多余的内容，比如注释,不用markdown格式的```包裹}\n" +
+                        "#####\n" +
+                        "{明确的数据分析结论、越详细越好，不要生成多余的注释}");
+                allPrompt.append("用户要分析的要求是:\n");
+                allPrompt.append(goal).append("\n");
+                allPrompt.append("最后的要生成的图表类型是:\n");
+                allPrompt.append(chartType);
+                allPrompt.append("原始数据是，这部分是Csv格式，逗号分隔的:\n");
+                allPrompt.append(csvString);
                 answerByAi = aiManager.doChat(1654785040361893889L, allPrompt.toString());
             }else {
                 throw new BusinessException(ErrorCode.PARAMS_ERROR,"模型名称设置有误");
