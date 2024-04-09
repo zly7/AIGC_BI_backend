@@ -5,9 +5,8 @@
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.runnables import RunnableParallel, RunnablePassthrough
-from langchain_openai.chat_models import ChatOpenAI
+from langchain_community.chat_models import ChatOpenAI
 from langchain.agents.openai_assistant import OpenAIAssistantRunnable
-from langchain_openai.embeddings import OpenAIEmbeddings
 import os
 from pydantic import BaseModel
 from flask import Flask, request, jsonify,render_template
@@ -74,13 +73,20 @@ def process_prompt():
         chain = chain_3
     elif data_package.modelName == "gpt-4":
         chain = chain_4
+    elif "3.5" in data_package.modelName:
+        chain = chain_3
+        print("Using gpt-3.5-turbo")
     print(data_package)
     result = chain.invoke({"goal": data_package.goal, "chart_type": data_package.chartType, "csv_string": data_package.csvString})
+    print(result)
     return result
+
 
 @app.route('/')
 def upload_form():
     return render_template('upload.html')
+
+
 
 @app.route('/conversation', methods=['POST'])
 def conversation():

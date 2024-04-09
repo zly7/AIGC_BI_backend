@@ -4,9 +4,6 @@
 spring:
   application:
     name: springboot-init
-  # 默认 dev 环境
-  profiles:
-    active: dev
   # 支持 swagger3
   mvc:
     pathmatch:
@@ -21,24 +18,21 @@ spring:
   # todo 需替换配置
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
-    url: jdbc:mysql://localhost:3306/yubi
-#    url: jdbc:mysql://localhost:3306/biproject
-    username: root
-#    password: 0zYya!9%Y73R
-    password: helloworld
-  # Redis 配置
+    url: jdbc:mysql://localhost:3306/spring2024
+    username: top
+    password: hello
   redis:
     database: 1
     host: localhost
     port: 6379
     timeout: 5000
-#    password: 123456
+  #    password: 123456
   # Elasticsearch 配置
   # todo 需替换配置，然后取消注释
-#  elasticsearch:
-#    uris: http://localhost:9200
-#    username: root
-#    password: 123456
+  #  elasticsearch:
+  #    uris: http://localhost:9200
+  #    username: root
+  #    password: 123456
   # 文件上传
   servlet:
     multipart:
@@ -46,7 +40,6 @@ spring:
       max-file-size: 10MB
 server:
   address: 0.0.0.0
-#  port: 8111
   port: 8101
   servlet:
     context-path: /api
@@ -112,5 +105,5 @@ openai:
   api:
     model: gpt-4
     url: https://api.openai-proxy.com/v1/chat/completions
-    key: ${OPENAI_API_KEY}
+    key: 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
 
