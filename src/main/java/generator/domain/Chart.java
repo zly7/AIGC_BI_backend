@@ -77,6 +77,15 @@ public class Chart implements Serializable {
     private Date updateTime;
 
     /**
+     * AI assistant ID
+     */
+    private String assistantID;
+
+    /**
+     * AI thread ID
+     */
+    private String threadID;
+    /**
      * 是否删除
      */
     private Integer isDelete;

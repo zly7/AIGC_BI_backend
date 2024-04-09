@@ -13,10 +13,7 @@ import com.yupi.springbootinit.constant.CommonConstant;
 import com.yupi.springbootinit.constant.UserConstant;
 import com.yupi.springbootinit.exception.BusinessException;
 import com.yupi.springbootinit.exception.ThrowUtils;
-import com.yupi.springbootinit.manager.AiManager;
-import com.yupi.springbootinit.manager.LangChainManager;
-import com.yupi.springbootinit.manager.RedisLimiterManager;
-import com.yupi.springbootinit.manager.OpenAIManager;
+import com.yupi.springbootinit.manager.*;
 import com.yupi.springbootinit.model.dto.chart.*;
 import com.yupi.springbootinit.model.entity.Chart;
 import com.yupi.springbootinit.model.entity.User;
@@ -59,6 +56,9 @@ public class ChartController {
 
     @Resource
     private AiManager aiManager;
+
+    @Resource
+    private AIAssistantManager aiAssistantManager;
 
     @Resource
     private RedisLimiterManager redisLimiterManager;
@@ -413,6 +413,90 @@ public class ChartController {
         biResponse.setChartId(chart.getId());
         return ResultUtils.success(biResponse);
     }
+
+    @PostMapping("/aiAssistant")
+    public BaseResponse<BiResponse> genChartByAiAssistant(@RequestPart("file") MultipartFile multipartFile,
+                                                        GenChartByAiRequest genChartByAiRequest, HttpServletRequest request) {
+        String chartType = genChartByAiRequest.getChartType();
+        String goal = genChartByAiRequest.getGoal();
+        String name = genChartByAiRequest.getName();
+        String modelName = genChartByAiRequest.getModelName();
+
+        User loginInUser = userService.getLoginUser(request);
+
+        StringBuilder allPrompt = new StringBuilder();
+        allPrompt.append("You are a data analyst. Now I will give you the raw data, and you need to help me summarize it according to the requirements. Please format it according to the requirement ##### for separation, which means generating two parts. The first part is the code for the front-end Echarts V5 option configuration object for generating charts, and the second part is the language result of data analysis. Reasonably visualize the data, do not generate any extra content. Both parts start with #####. The format to be returned is the generated content (do not output any extra beginnings, endings, comments):\n" +
+                "#####\n" +
+                "{Front-end Echarts V5 option configuration object js code, reasonably visualize the data, remember to attach quotes to each string in Echart JSON format, do not generate any extra content such as comments, do not use markdown format ```}\n" +
+                "#####\n" +
+                "{Clear data analysis conclusions, the more detailed the better,emember to attach quotes to each string in Echart JSON format ,do not generate extra comments}");
+
+        allPrompt.append("The user's analysis requirements are:\n");
+        allPrompt.append(goal).append("\n");
+        allPrompt.append("The final chart types to be generated are:\n");
+        allPrompt.append(chartType);
+
+        try {
+            String manager_id = aiAssistantManager.createAssistant("Visualizer", modelName, allPrompt.toString(),multipartFile );
+
+            long size = multipartFile.getSize();
+            String filename = multipartFile.getOriginalFilename();
+            final long ONE_MB = 1 * 1024 * 1024L;
+            ThrowUtils.throwIf(size>ONE_MB, ErrorCode.PARAMS_ERROR, "上传文件过大");
+            String suffix = FileUtil.getSuffix(filename);
+            List<String> validateFileSuffix= Arrays.asList("csv","xlsx");
+            ThrowUtils.throwIf(!validateFileSuffix.contains(suffix),ErrorCode.PARAMS_ERROR,"上传文件后缀不合法");
+
+            //限流操作,每个用户对应的每个方法的限流器
+            redisLimiterManager.doLimit("genChartByAi_"+String.valueOf(loginInUser.getId()));
+//            String csvString = ExcelUtils.excelToCsv(multipartFile);
+
+            Chart chart = new Chart();
+            chart.setGoal(goal);
+            chart.setName(name);
+//            chart.setChartData(csvString);
+            chart.setChartType(chartType);
+            chart.setUserId(loginInUser.getId());
+
+            //先从OpenAI 得出一个Assistant ID,在设入进Object里
+            chart.setAssistantID(manager_id);
+
+            String threadId = aiAssistantManager.createThread();
+            chart.setThreadID(threadId);
+            boolean saveChartResult = chartService.save(chart);
+            if (!saveChartResult){
+                handleUpdatedError(chart.getId(),"chart保存错误");
+            }
+            String response = aiAssistantManager.sendMessageToThread(allPrompt.toString(), manager_id, threadId);
+
+            String[] splitAnswers = response.split("#####");
+            if(splitAnswers.length!=3){
+                throw new BusinessException(ErrorCode.SYSTEM_ERROR,"AI 生成错误");
+            }
+
+            String genChart = splitAnswers[1].trim();
+            String genResult = splitAnswers[2].trim();
+            Chart updatedChart = chartService.getById(chart.getId());
+            updatedChart.setGenResult(genResult);
+            updatedChart.setGenChart(genChart);
+            updatedChart.setStatus("succeed");
+            boolean updatedResult = chartService.updateById(updatedChart);
+            if(!updatedResult){
+                handleUpdatedError(updatedChart.getId(),"获得AI数据后，更新图表错误");
+            }
+
+            BiResponse biResponse = new BiResponse();
+            biResponse.setChartId(chart.getId());
+            return ResultUtils.success(biResponse);
+
+        }catch(Exception e){
+            log.info("createAssistant exception A e: {}", e.getMessage());
+
+            return null;
+        }
+
+    }
+
     @PostMapping("/genLc/async")
     public BaseResponse<BiResponse> genChartByLcAiAsync(@RequestPart("file") MultipartFile multipartFile,
                                                       GenChartByAiRequest genChartByAiRequest, HttpServletRequest request) {
