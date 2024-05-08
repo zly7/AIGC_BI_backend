@@ -5,6 +5,7 @@ import cn.hutool.core.io.FileUtil;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.yupi.springbootinit.annotation.AuthCheck;
+import com.yupi.springbootinit.bizmq.BiMessageProducer;
 import com.yupi.springbootinit.common.BaseResponse;
 import com.yupi.springbootinit.common.DeleteRequest;
 import com.yupi.springbootinit.common.ErrorCode;
@@ -71,6 +72,9 @@ public class ChartController {
 
     @Resource
     private ThreadPoolExecutor threadPoolExecutor;
+
+    @Resource
+    private BiMessageProducer biMessageProducer;
 
     // region 增删改查
 
@@ -577,6 +581,55 @@ public class ChartController {
                 handleUpdatedError(updatedChart.getId(),"获得AI数据后，更新图表错误");
             }
         },threadPoolExecutor);
+
+        BiResponse biResponse = new BiResponse();
+        biResponse.setChartId(chart.getId());
+        return ResultUtils.success(biResponse);
+    }
+
+    @PostMapping("/genLc/async_mq")
+    public BaseResponse<BiResponse> genChartByLcAiAsyncMq(@RequestPart("file") MultipartFile multipartFile,
+                                                        GenChartByAiRequest genChartByAiRequest, HttpServletRequest request) {
+        String chartType = genChartByAiRequest.getChartType();
+        String goal = genChartByAiRequest.getGoal();
+        String name = genChartByAiRequest.getName();
+        String modelName = genChartByAiRequest.getModelName();
+
+        //必须要登陆才能使用
+        User loginInUser = userService.getLoginUser(request);
+
+        long size = multipartFile.getSize();
+        String filename = multipartFile.getOriginalFilename();
+        final long ONE_MB = 1 * 1024 * 1024L;
+        ThrowUtils.throwIf(size>ONE_MB, ErrorCode.PARAMS_ERROR, "上传文件过大");
+        String suffix = FileUtil.getSuffix(filename);
+        List<String> validateFileSuffix= Arrays.asList("csv","xlsx");
+        ThrowUtils.throwIf(!validateFileSuffix.contains(suffix),ErrorCode.PARAMS_ERROR,"上传文件后缀不合法");
+
+        //限流操作,每个用户对应的每个方法的限流器
+        redisLimiterManager.doLimit("genChartByAi_"+String.valueOf(loginInUser.getId()));
+
+        GiveLangChainManagerDataPackage giveLangChainManagerDataPackage = new GiveLangChainManagerDataPackage();
+        giveLangChainManagerDataPackage.setChartType(chartType);
+        giveLangChainManagerDataPackage.setGoal(goal);
+        String csvString = ExcelUtils.excelToCsv(multipartFile);
+        giveLangChainManagerDataPackage.setCsvString(csvString);
+        giveLangChainManagerDataPackage.setModelName(modelName);
+
+
+        Chart chart = new Chart();
+        chart.setGoal(goal);
+        chart.setName(name);
+        chart.setChartData(csvString);
+        chart.setChartType(chartType);
+        chart.setUserId(loginInUser.getId());
+        chart.setStatus("wait");
+        boolean saveChartResult = chartService.save(chart);
+        if (!saveChartResult){
+            handleUpdatedError(chart.getId(),"chart保存错误");
+        }
+        giveLangChainManagerDataPackage.setChartId(chart.getId());
+        biMessageProducer.sendMessage(giveLangChainManagerDataPackage);
 
         BiResponse biResponse = new BiResponse();
         biResponse.setChartId(chart.getId());
