@@ -4,6 +4,8 @@ import com.esotericsoftware.kryo.io.Input;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.gson.Gson;
+import com.yupi.springbootinit.common.ErrorCode;
+import com.yupi.springbootinit.exception.ThrowUtils;
 import com.yupi.springbootinit.model.dto.chart.ChatGPTRunsRequest;
 import com.yupi.springbootinit.model.dto.chart.CreateAIMessageRequest;
 import com.yupi.springbootinit.model.dto.chat.CreateAIAssistantRequest;
@@ -22,9 +24,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.FileSystemResource;
-import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.MediaType;
+import org.springframework.http.*;
 import org.springframework.stereotype.Service;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
@@ -32,9 +32,11 @@ import org.springframework.web.client.HttpStatusCodeException;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.multipart.MultipartFile;
+import com.theokanning.openai.service.OpenAiService;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.*;
@@ -57,6 +59,9 @@ public class AIAssistantManager {
     @Value("${openai.file.url}")
     private String CHATGPT_FILE_URL;
 
+    @Value("http://localhost:5000/")
+    private String flask_url;
+
     @Qualifier("openaiRestTemplate")
     @Autowired
     private RestTemplate restTemplate;
@@ -78,9 +83,11 @@ public class AIAssistantManager {
 
 
         HttpEntity<MultiValueMap> entity = new HttpEntity<>(body, headers);
+        HttpEntity<FileSystemResource> requestEntity = new HttpEntity<>(new FileSystemResource(String.valueOf(multipartFile)));
         String response;
         try {
             ObjectMapper objectMapper = new ObjectMapper();
+//            ResponseEntity<String> responseEntity = restTemplate.exchange(CHATGPT_FILE_URL, HttpMethod.POST, entity, String.class);
             response = this.restTemplate.postForObject(CHATGPT_FILE_URL, entity, String.class);
             JsonNode jsonNode = objectMapper.readTree(response);
 
@@ -115,7 +122,12 @@ public class AIAssistantManager {
 
         // 调用OpenAI 传文件API
         String[] file_id = uploadFile(multipartFile);
-        chatGPTCreateAssistantRequest.setFile_ids(file_id);
+        if(file_id!=null){
+            chatGPTCreateAssistantRequest.setFile_ids(file_id);
+
+        }else {
+            throw new IOException();
+        }
 
         log.info("createAssistant started. url: {}", CHATGPT_ASSISTANTS_URL);
 
@@ -131,7 +143,7 @@ public class AIAssistantManager {
         log.info("createAssistant post body: {}", body);
 
         try {
-            final StringEntity entity = new StringEntity(body);
+            final StringEntity entity = new StringEntity(body, StandardCharsets.UTF_8);
             post.setEntity(entity);
 
             try (CloseableHttpClient httpClient = HttpClients.custom().build();
@@ -160,14 +172,14 @@ public class AIAssistantManager {
 
             } catch (Exception e) {
                 log.info("createAssistant exception A e: {}", e.getMessage());
+                throw new IOException();
 
-                return null;
             }
         }
         catch (Exception e) {
             log.info("createAssistant exception B e: {}", e.getMessage());
 
-            return null;
+            throw new IOException();
         }
 
 
