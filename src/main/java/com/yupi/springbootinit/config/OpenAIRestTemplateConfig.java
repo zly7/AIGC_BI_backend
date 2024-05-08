@@ -7,6 +7,7 @@ import org.springframework.context.annotation.Bean;
 
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.MediaType;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.http.converter.HttpMessageConverter;
 import org.springframework.http.converter.json.MappingJackson2HttpMessageConverter;
 import org.springframework.web.client.RestTemplate;
@@ -25,7 +26,11 @@ public class OpenAIRestTemplateConfig  {
     @Bean
     @Qualifier("openaiRestTemplate")
     public RestTemplate openaiRestTemplate() {
+
         final RestTemplate restTemplate = new RestTemplate();
+        SimpleClientHttpRequestFactory requestFactory = new SimpleClientHttpRequestFactory();
+        requestFactory.setBufferRequestBody(false);
+        restTemplate.setRequestFactory(requestFactory);
 
 //        List<HttpMessageConverter<?>> messageConverters = new ArrayList<>();
 //        MappingJackson2HttpMessageConverter converter = new MappingJackson2HttpMessageConverter();
@@ -37,6 +42,8 @@ public class OpenAIRestTemplateConfig  {
             request.getHeaders().add("Authorization", "Bearer " + openaiApiKey);
             return execution.execute(request, body);
         });
+
+
         return restTemplate;
     }
 }

@@ -363,7 +363,7 @@ public class ChartController {
                 "也就是要生成两部分，第一部分是生成图表的前端 Echarts V5 的 option 配置对象is代码，第二部分是分析的数据的语言结果，" +
                 "合理地将数据进行可视化，不要生成任何多余的内容。两部分开头都用【【【【【进行开头\n。最后要返回的格式是生成内容(此外不要输出任何多余的开头、结尾、注释):\n" +
                 "【【【【【\n"+
-                "{前端 Echarts V5 的 option 配置对象js代码，合理地将数据进行可视化，Echart JSON 格式里记得为每个字符串附上引号，不要生成任何多余的内容，比如注释,不用markdown格式的```包裹}\n" +
+                "{前端 Echarts V5 的 option 配置对象js代码，合理地将数据进行可视化，Echart JSON 所有的每个字符串一定要放双引号，把所有单引号都变成双引号，不要生成任何多余的内容，比如注释,不用markdown格式的```包裹}\n" +
                 "【【【【【\n" +
                 "{明确的数据分析结论、越详细越好，不要生成多余的注释}");
         allPrompt.append("用户要分析的要求是:\n");
@@ -418,9 +418,11 @@ public class ChartController {
         return ResultUtils.success(biResponse);
     }
 
-    @PostMapping("/aiAssistant")
-    public BaseResponse<BiResponse> genChartByAiAssistant(@RequestPart("file") MultipartFile multipartFile,
+    @PostMapping("/gen/aiAssistant")
+    public BaseResponse<BiResponse> genChartByAiAssistant(@RequestParam("file") MultipartFile multipartFile,
                                                         GenChartByAiRequest genChartByAiRequest, HttpServletRequest request) {
+
+
         String chartType = genChartByAiRequest.getChartType();
         String goal = genChartByAiRequest.getGoal();
         String name = genChartByAiRequest.getName();
@@ -553,7 +555,7 @@ public class ChartController {
                         "也就是要生成两部分，第一部分是生成图表的前端 Echarts V5 的 option 配置对象is代码，第二部分是分析的数据的语言结果，" +
                         "合理地将数据进行可视化，不要生成任何多余的内容。两部分开头都用#####进行开头\n。最后要返回的格式是生成内容(此外不要输出任何多余的开头、结尾、注释):\n" +
                         "#####\n"+
-                        "{前端 Echarts V5 的 option 配置对象js代码，合理地将数据进行可视化，Echart JSON 格式里记得为每个字符串附上引号，不要生成任何多余的内容，比如注释,不用markdown格式的```包裹}\n" +
+                        "{前端 Echarts V5 的 option 配置对象js代码，合理地将数据进行可视化，Echart JSON 所有的每个字符串一定要放双引号，把所有单引号都变成双引号，不要生成任何多余的内容，比如注释,不用markdown格式的```包裹}\n" +
                         "#####\n" +
                         "{明确的数据分析结论、越详细越好，不要生成多余的注释}");
                 allPrompt.append("用户要分析的要求是:\n");
