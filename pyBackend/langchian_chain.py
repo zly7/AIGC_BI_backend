@@ -47,7 +47,11 @@ template = ("You are a data analyst,I will give you the raw data, "
             "The final chart type to be generated is:\n{chart_type}\n"
             "The original data in CSV format is:\n{csv_string}, after generating the chart, you will only do analysis based on the chart you've created."
             "Please generate the full content of the chart, do not use ellipses which is ... to abbreviate. Note that the generated echarts option will be parsed by JSON parser to get the final option object in JS, so make sure the format is correct."
-            "I will give the example below, you must follow the format of the example. But the eachats format can be different because of different requirements. Note that the generated echarts option should start directly from {{, without any other formatting."
+            "My analysis are placed below includes two parts which are eacharts js code and analysis #####\n"
+            "The option configuration object js code for frontend Echarts V5 can effectively visualize data. In the Echart JSON format, remember to enclose each string in quotes and avoid generating any extraneous content, such as comments.\n" +
+            "#####\n" 
+            "Clear data analysis conclusions, the more detailed the better, and do not generate extraneous comments."
+            "I will give one real example below, you must follow the format of the example. But the eachats format can be different because of different requirements. Note that the generated echarts option should start directly from {{, without any other formatting."
             "My analysis are placed below includes two parts which are eacharts js code and analysis #####\n"
             """{{
                 "title": {{
@@ -151,7 +155,11 @@ def conversation():
             "The final chart type to be generated is:\n{chart_type}\n"
             "The original data in CSV format is:\n{csv_string}, after generating the chart, you will only do analysis based on the chart you've created."
             "Please generate the full content of the chart, do not use ellipses which is ... to abbreviate. Note that the generated echarts option will be parsed by JSON parser to get the final option object in JS, so make sure the format is correct."
-            "I will give the example below, you must follow the format of the example. But the eachats format can be different because of different requirements. Note that the generated echarts option should start directly from {{, without any other formatting."
+            "My analysis are placed below includes two parts which are eacharts js code and analysis #####\n"
+            "The option configuration object js code for frontend Echarts V5 can effectively visualize data. In the Echart JSON format, remember to enclose each string in quotes and avoid generating any extraneous content, such as comments.\n" +
+            "#####\n" 
+            "Clear data analysis conclusions, the more detailed the better, and do not generate extraneous comments."
+            "I will give one real example below, you must follow the format of the example. But the eachats format can be different because of different requirements. Note that the generated echarts option should start directly from {{, without any other formatting."
             "My analysis are placed below includes two parts which are eacharts js code and analysis #####\n"
             """{{
                 "title": {{
@@ -214,4 +222,4 @@ def conversation():
         print(run.status)
 
 if __name__ == '__main__':
-    app.run(debug=True, port=5000)
+    app.run(debug=False, port=5000)
