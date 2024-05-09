@@ -22,8 +22,10 @@ public class ThreadPoolExecutorConfig {
                 return thread;
             }
         };
-        ThreadPoolExecutor threadPoolExecutor = new ThreadPoolExecutor(2,4,100,
-                TimeUnit.SECONDS,new ArrayBlockingQueue<>(2,true),threadFactory);
+//        ThreadPoolExecutor threadPoolExecutor = new ThreadPoolExecutor(2,4,100, //原本的设计，现在是开发阶段不限制线程数
+//                TimeUnit.SECONDS,new ArrayBlockingQueue<>(2,true),threadFactory);
+        ThreadPoolExecutor threadPoolExecutor = new ThreadPoolExecutor(20,40,100,
+                TimeUnit.SECONDS,new ArrayBlockingQueue<>(20,true),threadFactory);
         return threadPoolExecutor;
     }
 

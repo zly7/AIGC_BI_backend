@@ -20,7 +20,7 @@ public class GiveLangChainManagerDataPackage implements Serializable {
     private String csvString;
 
     private String modelName;
-    private Long chartId;
+    private Long chartId = -1L;
 
     @TableField(exist = false)
     private static final long serialVersionUID = 1L;

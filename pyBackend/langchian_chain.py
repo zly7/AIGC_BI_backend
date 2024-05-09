@@ -5,7 +5,8 @@
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.runnables import RunnableParallel, RunnablePassthrough
-from langchain_community.chat_models import ChatOpenAI
+# from langchain_community.chat_models import ChatOpenAI
+from langchain_openai.chat_models import ChatOpenAI
 from langchain.agents.openai_assistant import OpenAIAssistantRunnable
 import os
 from pydantic import BaseModel
@@ -29,6 +30,7 @@ class GiveLangChainManagerDataPackage(BaseModel):
     goal: str
     csvString: str
     modelName: str
+    chartId: int
 
 # vectorstore = DocArrayInMemorySearch.from_texts(
 #     ["You are a data analyst"],
@@ -39,11 +41,53 @@ class GiveLangChainManagerDataPackage(BaseModel):
 template = ("You are a data analyst,I will give you the raw data, "
             "you need to help me summarize it according to the requirements. Please format it as required, "
             "dividing it into two parts, the first part is the front-end Echarts V5 option configuration object "
-            "JavaScript code, and the second part is the analysis of the data result, visualize the data reasonably, "
-            "without generating any superfluous content. Start both parts with ##### .\n"
+            "JavaScript code, and the second part is the analysis of the data result "
+            "without generating any superfluous content. Start both parts of Echarts V5 JSON code or analysis result with ##### . You answer should start with '''My analysis are placed below includes two parts which are eacharts js code and analysis'''\n"
             "User's analysis requirement is:\n{goal}\n"
             "The final chart type to be generated is:\n{chart_type}\n"
-            "The original data in CSV format is:\n{csv_string}")
+            "The original data in CSV format is:\n{csv_string}, after generating the chart, you will only do analysis based on the chart you've created."
+            "Please generate the full content of the chart, do not use ellipses which is ... to abbreviate. Note that the generated echarts option will be parsed by JSON parser to get the final option object in JS, so make sure the format is correct."
+            "I will give the example below, you must follow the format of the example. But the eachats format can be different because of different requirements. Note that the generated echarts option should start directly from {{, without any other formatting."
+            "My analysis are placed below includes two parts which are eacharts js code and analysis #####\n"
+            """{{
+                "title": {{
+                    "text": "网站增长情况"
+                }},
+                "tooltip": {{
+                    "trigger": "axis"
+                }},
+                "grid": {{
+                    "left": "3%",
+                    "right": "4%",
+                    "bottom": "3%",
+                    "containLabel": true
+                }},
+                "toolbox": {{
+                    "feature": {{
+                    "saveAsImage": {{}}
+                    }}
+                }},
+                "xAxis": {{
+                    "type": "category",
+                    "boundaryGap": false,
+                    "data": ["1月1日", "1月2日", "1月3日", "1月4日", "1月5日"]
+                }},
+                "yAxis": {{
+                    "type": "value"
+                }},
+                "series": [
+                    {{
+                    "name": "增长数量",
+                    "type": "bar",
+                    "data": [10, 20, 30, 40, 50],
+                    "itemStyle": {{
+                        "color": "#3398DB"
+                    }}
+                    }}
+                ]
+                }}\n"""
+            "#####\n"
+            "The analysis of the data result")
 prompt = ChatPromptTemplate.from_template(template)
 if not use_proxy_clash:
     model_3_dot_5 = ChatOpenAI(model_name="gpt-3.5-turbo", openai_api_key=api_key,openai_api_base="https://api.openai-proxy.com/v1/")
@@ -101,11 +145,53 @@ def conversation():
         description="You are a data analyst,I will give you the raw data, "
             "you need to help me summarize it according to the requirements. Please format it as required, "
             "dividing it into two parts, the first part is the front-end Echarts V5 option configuration object "
-            "JavaScript code, and the second part is the analysis of the data result, visualize the data reasonably, "
-            "without generating any superfluous content. Start both parts with ##### .\n"
+            "JavaScript code, and the second part is the analysis of the data result "
+            "without generating any superfluous content. Start both parts of Echarts V5 JSON code or analysis result with ##### . You answer should start with '''My analysis are placed below includes two parts which are eacharts js code and analysis'''\n"
             "User's analysis requirement is:\n{goal}\n"
             "The final chart type to be generated is:\n{chart_type}\n"
-            "The original data in CSV format is:\n{csv_string}, after generating the chart, you will only do analysis based on the chart you've created.",
+            "The original data in CSV format is:\n{csv_string}, after generating the chart, you will only do analysis based on the chart you've created."
+            "Please generate the full content of the chart, do not use ellipses which is ... to abbreviate. Note that the generated echarts option will be parsed by JSON parser to get the final option object in JS, so make sure the format is correct."
+            "I will give the example below, you must follow the format of the example. But the eachats format can be different because of different requirements. Note that the generated echarts option should start directly from {{, without any other formatting."
+            "My analysis are placed below includes two parts which are eacharts js code and analysis #####\n"
+            """{{
+                "title": {{
+                    "text": "网站增长情况"
+                }},
+                "tooltip": {{
+                    "trigger": "axis"
+                }},
+                "grid": {{
+                    "left": "3%",
+                    "right": "4%",
+                    "bottom": "3%",
+                    "containLabel": true
+                }},
+                "toolbox": {{
+                    "feature": {{
+                    "saveAsImage": {{}}
+                    }}
+                }},
+                "xAxis": {{
+                    "type": "category",
+                    "boundaryGap": false,
+                    "data": ["1月1日", "1月2日", "1月3日", "1月4日", "1月5日"]
+                }},
+                "yAxis": {{
+                    "type": "value"
+                }},
+                "series": [
+                    {{
+                    "name": "增长数量",
+                    "type": "bar",
+                    "data": [10, 20, 30, 40, 50],
+                    "itemStyle": {{
+                        "color": "#3398DB"
+                    }}
+                    }}
+                ]
+                }}\n"""
+            "#####\n"
+            "The analysis of the data result",
         model="gpt-4",
         tools=[{"type": "code_interpreter"}],
         file_ids=[file.id]

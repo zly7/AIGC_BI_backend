@@ -40,13 +40,10 @@ public class LangChainManager {
         headers.setContentType(MediaType.APPLICATION_JSON);
         HttpEntity<String> entity = new HttpEntity<>(jsonRequest, headers);
 
-        // Attempt to call the API with the JSON request
+        // 下面这里就是直接的response的返回就是要的答案，之前的代码是openai生成的
         String response;
         try {
-            String jsonResponse = this.restTemplate.postForObject(lcApiUrl, entity, String.class);
-            ObjectMapper objectGetMapper = new ObjectMapper();
-            Map<String, Object> responseMap = objectGetMapper.readValue(jsonResponse, new TypeReference<Map<String, Object>>(){});
-            response = (String) responseMap.get("response");
+            response = this.restTemplate.postForObject(lcApiUrl, entity, String.class);
         } catch (RestClientException e) {
             if (e instanceof HttpStatusCodeException) {
                 HttpStatusCodeException ex = (HttpStatusCodeException) e;
@@ -54,11 +51,7 @@ public class LangChainManager {
             } else {
                 response = "Error calling the API: " + e.getMessage();
             }
-        }catch (JsonProcessingException e) {
-            // Handle JsonProcessingException when parsing the JSON response
-            response = "Error parsing JSON response: " + e.getMessage();
         }
-
         return response != null ? response : "No response received";
     }
 }

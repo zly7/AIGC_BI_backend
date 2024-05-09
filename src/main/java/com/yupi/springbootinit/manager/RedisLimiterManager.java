@@ -15,7 +15,7 @@ public class RedisLimiterManager {
     private RedissonClient redissonClientLimiter;
     public void doLimit(String key){
         RRateLimiter rateLimiter = redissonClientLimiter.getRateLimiter(key);
-        rateLimiter.trySetRate(RateType.OVERALL, 2, 1, RateIntervalUnit.SECONDS);
+        rateLimiter.trySetRate(RateType.OVERALL, 200, 100, RateIntervalUnit.SECONDS); // 100个interval里面请求不得超过200个
         boolean canOperate = rateLimiter.tryAcquire(1);
         if(!canOperate){
             throw new BusinessException(ErrorCode.TOO_MANY_REQUEST,"用户被限流器限制");

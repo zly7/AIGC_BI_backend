@@ -107,6 +107,12 @@ yuapi:
     secret-key: ox0sapw4627djpiji93apetm7bs2q1er
 
 openai:
+  thread:
+    url: https://api.openai-proxy.com/v1/threads
+  assistant:
+    url: https://api.openai-proxy.com/v1/assistants
+  file:
+    url: https://api.openai-proxy.com/v1/files
   api:
     model: gpt-4
     url: https://api.openai-proxy.com/v1/chat/completions

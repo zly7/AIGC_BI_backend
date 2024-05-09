@@ -32,7 +32,6 @@ import org.springframework.web.client.HttpStatusCodeException;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.multipart.MultipartFile;
-import com.theokanning.openai.service.OpenAiService;
 
 import java.io.IOException;
 import java.io.InputStream;

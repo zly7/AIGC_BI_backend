@@ -13,7 +13,7 @@ import java.util.Objects;
 import java.util.stream.Collectors;
 
 public class ExcelUtils {
-    public static String excelToCsv(MultipartFile multipartFile) {
+    public static String excelToCsvString(MultipartFile multipartFile) {
         // 创建临时文件来保存Excel内容
         File tempFile;
         try {
@@ -30,10 +30,25 @@ public class ExcelUtils {
 //        }
         // 准备一个列表来收集所有行的数据
         List<LinkedHashMap<Integer, String>> allRows = new ArrayList<>();
-        //下面这个用法就真的不好记
-        EasyExcel.read(tempFile, new PageReadListener<LinkedHashMap<Integer, String>>(dataList -> {
-            allRows.addAll(dataList);
-        })).sheet().doRead();
+        // 判断文件类型并相应地进行处理
+        String fileName = multipartFile.getOriginalFilename();
+        if (fileName.endsWith(".csv")) {
+            // 如果是CSV文件，直接读取并返回整个文件内容
+            StringBuilder stringBuilder = new StringBuilder();
+            try (BufferedReader reader = new BufferedReader(new FileReader(tempFile))) {
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    stringBuilder.append(line).append("\n");
+                }
+            } catch (IOException e) {
+                throw new RuntimeException("Failed to read CSV file", e);
+            }
+            return stringBuilder.toString();
+        } else {
+            EasyExcel.read(tempFile, LinkedHashMap.class, new PageReadListener<LinkedHashMap<Integer, String>>(dataList -> {
+                allRows.addAll(dataList);
+            })).sheet().doRead();
+        }
 
         // 将读取的数据转换成CSV格式
         StringBuilder csvOutput = new StringBuilder();
@@ -47,6 +62,6 @@ public class ExcelUtils {
         return csvOutput.toString();
     }
     public static void main(String[] args) {
-        excelToCsv(null);
+        excelToCsvString(null);
     }
 }
