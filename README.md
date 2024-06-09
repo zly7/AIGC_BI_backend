@@ -1,3 +1,9 @@
+# 启动流程：
+现在因为依赖了RabbitMQ,所以需要先启动RabbitMQ，运行BiInitMQ那个类的主函数。
+然后还要启动pyBackend的后端，把AI的后端启动起来。
+
+
+
 # SpringBoot 项目初始模板
 
 > 作者：[程序员鱼皮](https://github.com/liyupi)
