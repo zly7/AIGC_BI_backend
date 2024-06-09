@@ -44,9 +44,7 @@ public class BiMessageConsumer {
             }
             String answerByAi;
             String modelName = message.getModelName();
-            if(modelName.contains("gpt")){
-                answerByAi = langChainManager.doLcChat(message);
-            } else if (modelName.contains("yucongming")) {
+            if (modelName.contains("yucongming")) {
                 StringBuilder allPrompt = new StringBuilder();
                 allPrompt.append("你是一个数据分析师，现在我会把原始的数据给你，你需要帮我按照要求总结总结。请格式按照要求的#####进行分割，" +
                         "也就是要生成两部分，第一部分是生成图表的前端 Echarts V5 的 option 配置对象js代码，注意要符合JSON的格式，因为之后要用JSON parser解析，第二部分是分析的数据的语言结果，" +
@@ -62,7 +60,9 @@ public class BiMessageConsumer {
                 allPrompt.append("原始数据是，这部分是Csv格式，逗号分隔的:\n");
                 allPrompt.append(message.getCsvString()).append("\n");
                 answerByAi = aiManager.doChat(1654785040361893889L, allPrompt.toString());
-            }else {
+            }else if(modelName.contains("gpt") || modelName.contains("glm")){
+                answerByAi = langChainManager.doLcChat(message);
+            } else {
                 throw new BusinessException(ErrorCode.PARAMS_ERROR,"模型名称设置有误");
             }
             String[] splitAnswers = answerByAi.split("#####");
