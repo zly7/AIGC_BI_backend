@@ -21,7 +21,7 @@ import com.yupi.springbootinit.model.entity.User;
 import com.yupi.springbootinit.model.vo.BiResponse;
 import com.yupi.springbootinit.service.ChartService;
 import com.yupi.springbootinit.service.UserService;
-
+import org.springframework.dao.DuplicateKeyException;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ThreadPoolExecutor;
@@ -623,7 +623,7 @@ public class ChartController {
         String csvString = ExcelUtils.excelToCsvString(multipartFile);
         giveLangChainManagerDataPackage.setCsvString(csvString);
         giveLangChainManagerDataPackage.setModelName(modelName);
-
+        int uniqueId = giveLangChainManagerDataPackage.generateUniqueId();
 
         Chart chart = new Chart();
         chart.setGoal(goal);
@@ -632,7 +632,16 @@ public class ChartController {
         chart.setChartType(chartType);
         chart.setUserId(loginInUser.getId());
         chart.setStatus("wait");
-        boolean saveChartResult = chartService.save(chart);
+        chart.setContentId((long) uniqueId);
+        boolean saveChartResult = true;
+        try {
+            saveChartResult = chartService.save(chart);
+        } catch (DuplicateKeyException e) {
+            // 这里处理由于 contentId 重复引起的保存错误
+            handleUpdatedError(chart.getId(), "由于 contentId 的唯一性约束，无法保存 chart");
+            ErrorCode errorCode = ErrorCode.REPEAT_REQUEST;
+            return ResultUtils.error(errorCode.getCode(), errorCode.getMessage());
+        }
         if (!saveChartResult){
             handleUpdatedError(chart.getId(),"chart保存错误");
         }
